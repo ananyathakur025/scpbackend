@@ -15,7 +15,7 @@ except ImportError as e:
 
 # Paths: script is in backend/scripts/, model is in backend/models/
 script_dir = Path(__file__).parent
-model_path = script_dir.parent / "models" / "random_forest_model.pkl"
+model_path = script_dir.parent / "model" / "random_forest_model.pkl"
 
 if model_path.exists():
     reg = joblib.load(str(model_path))
