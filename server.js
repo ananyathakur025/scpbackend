@@ -8,19 +8,36 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ✅ Only this line updated
+// ✅ Allowed frontend origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://speechprogresspredict.vercel.app'
+];
+
+// ✅ CORS middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://speechprogresspredict.vercel.app'],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.error(`❌ CORS blocked request from origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
-  preflightContinue: false,
   optionsSuccessStatus: 200
 }));
 
-app.options('/predict', cors());
 app.use(bodyParser.json());
 
+// ✅ Root health check
+app.get('/', (req, res) => {
+  res.send("✅ Speech backend is running!");
+});
+
+// ✅ Predict endpoint
 app.post('/predict', async (req, res) => {
   console.log("🛎️ Received request at /predict");
 
@@ -29,7 +46,7 @@ app.post('/predict', async (req, res) => {
     return res.status(400).json({ error: "Transcript is required" });
   }
 
-  // ✅ Script path uses current backend root (not parent)
+  // ✅ Use either debug or normal script
   const debugScriptPath = path.join(__dirname, 'scripts', 'debug_predict.py');
   const originalScriptPath = path.join(__dirname, 'scripts', 'predict.py');
   const scriptPath = fs.existsSync(debugScriptPath) ? debugScriptPath : originalScriptPath;
@@ -41,7 +58,6 @@ app.post('/predict', async (req, res) => {
   for (const pythonCmd of pythonCommands) {
     try {
       const python = spawn(pythonCmd, [scriptPath]);
-      
       python.stdin.write(JSON.stringify({ transcript }));
       python.stdin.end();
 
@@ -59,9 +75,9 @@ app.post('/predict', async (req, res) => {
 
       python.on('close', (code) => {
         console.log(`🔚 Python process exited with code ${code}`);
-        
+
         if (code !== 0 || !output.trim()) {
-          return res.status(500).json({ 
+          return res.status(500).json({
             error: "Python script error",
             details: errorOutput || 'No output from Python script',
             code,
@@ -74,7 +90,7 @@ app.post('/predict', async (req, res) => {
           console.log("✅ Result sent to frontend:", result);
           res.json({ prediction: result.prediction || result });
         } catch (err) {
-          res.status(500).json({ 
+          res.status(500).json({
             error: "Invalid JSON from Python script",
             rawOutput: output,
             stderr: errorOutput
@@ -89,8 +105,7 @@ app.post('/predict', async (req, res) => {
         }
       });
 
-      break; // If one command works, exit loop
-
+      break; // Exit loop once one command succeeds
     } catch (err) {
       console.error(`❌ Error with Python command ${pythonCmd}:`, err);
       continue;
@@ -98,6 +113,7 @@ app.post('/predict', async (req, res) => {
   }
 });
 
+// ✅ Test endpoint for frontend connection check
 app.get('/test', (req, res) => {
   res.json({
     message: "Backend is working!",
@@ -107,6 +123,7 @@ app.get('/test', (req, res) => {
   });
 });
 
+// ✅ Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
