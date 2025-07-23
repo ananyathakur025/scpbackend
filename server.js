@@ -8,8 +8,9 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// ✅ Only this line updated
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://your-frontend.vercel.app'], // Update frontend URL here
+  origin: ['http://localhost:3000', 'https://speechprogresspredict.vercel.app'],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
@@ -28,9 +29,9 @@ app.post('/predict', async (req, res) => {
     return res.status(400).json({ error: "Transcript is required" });
   }
 
+  // ✅ Script path uses current backend root (not parent)
   const debugScriptPath = path.join(__dirname, 'scripts', 'debug_predict.py');
   const originalScriptPath = path.join(__dirname, 'scripts', 'predict.py');
-
   const scriptPath = fs.existsSync(debugScriptPath) ? debugScriptPath : originalScriptPath;
 
   console.log("📁 Using script path:", scriptPath);
@@ -97,7 +98,6 @@ app.post('/predict', async (req, res) => {
   }
 });
 
-// Simple test endpoint
 app.get('/test', (req, res) => {
   res.json({
     message: "Backend is working!",
